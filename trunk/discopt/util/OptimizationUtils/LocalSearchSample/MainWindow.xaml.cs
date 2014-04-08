@@ -40,20 +40,22 @@ namespace LocalSearchSample
             WorkerStatusFields = GenerateWorkerStatusFields(workerCount);
 
             CancelTokenSrc = new CancellationTokenSource();
-            Engine = new SearchEngine<SampleSolution>(new SampleProblem(), new RandomWalkStrategyFactory()) { WorkerProcessCount = workerCount };
-            Engine.BestSolutionImproved += (s, ea) => { Dispatcher.Invoke((Action)delegate() { ResultLabel.Text = ea.Value.ToString("F2"); });  };
-            Engine.WorkerSolutionUpdate += (s, ea) => { Dispatcher.Invoke((Action)delegate() { WorkerStatusFields[ea.WorkerId.Value].Text = ea.Value.ToString("F2"); }); };
+            Engine = new SearchEngine<SampleSolution>(new SampleProblem(), new RandomWalkStrategyFactory(), TaskScheduler.Default) { WorkerProcessCount = workerCount };
+            Engine.BestSolutionImproved += (s, ea) => { Dispatcher.Invoke((Action)delegate() { ResultLabel.Text = ea.Value.ToString(SolutionValueFormat); }); };
+            Engine.WorkerSolutionUpdate += (s, ea) => { Dispatcher.Invoke((Action)delegate() { WorkerStatusFields[ea.WorkerId.Value].Text = ea.Value.ToString(SolutionValueFormat); }); };
 
             StopButton.IsEnabled = true;
             StartButton.IsEnabled = false;
             Task<SampleSolution> t = Engine.SearchAsync(CancelTokenSrc);
             await t;
 
-            ResultLabel.Text = t.Result.ObjectiveValue().ToString("F2");
+            ResultLabel.Text = t.Result.ObjectiveValue().ToString(SolutionValueFormat);
             StopButton.IsEnabled = false;
             StartButton.IsEnabled = true;
             CancelTokenSrc = null;
         }
+
+        private const string SolutionValueFormat = "F2";
 
         private TextBlock[] GenerateWorkerStatusFields(int workerCount)
         {

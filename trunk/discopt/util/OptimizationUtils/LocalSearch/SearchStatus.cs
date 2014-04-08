@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace LocalSearch
 {
-    public class SearchValueEventArgs
+    public class SearchValueEventArgs : EventArgs
     {
         public double Value { get; private set; }
         public int? WorkerId { get; private set; }

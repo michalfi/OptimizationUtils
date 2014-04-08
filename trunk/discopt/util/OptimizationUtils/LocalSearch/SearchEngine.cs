@@ -11,14 +11,16 @@ namespace LocalSearch
     {
         protected IProblemModel<SolutionType> Problem { get; set; }
         protected ISearchStrategyFactory StrategyFactory { get; set; }
+        protected TaskScheduler Scheduler { get; set; }
 
         protected SolutionType BestSolution { get; set; }
 
-        public SearchEngine(IProblemModel<SolutionType> problem, ISearchStrategyFactory strategyFactory)
+        public SearchEngine(IProblemModel<SolutionType> problem, ISearchStrategyFactory strategyFactory, TaskScheduler scheduler)
         {
             Problem = problem;
             WorkerProcessCount = WorkerProcessCountDefault;
             StrategyFactory = strategyFactory;
+            Scheduler = scheduler;
         }
 
         public int WorkerProcessCount { get; set; }
@@ -30,6 +32,8 @@ namespace LocalSearch
         public async Task<SolutionType> SearchAsync(CancellationTokenSource cts)
         {
             BestSolution = Problem.RandomSolution();
+            if (BestSolutionImproved != null)
+                BestSolutionImproved(this, new SearchValueEventArgs(BestSolution.ObjectiveValue()));
             Task<SearchResult<SolutionType>>[] workers = new Task<SearchResult<SolutionType>>[WorkerProcessCount];
 
             while (!cts.IsCancellationRequested)
@@ -39,7 +43,7 @@ namespace LocalSearch
                     if (workers[i] == null)
                     {
                         int workerSlot = i;
-                        workers[i] = Task.Run(() =>
+                        workers[i] = Task.Factory.StartNew(() =>
                         {
                             ISearchStrategy strategy = StrategyFactory.Create();
                             strategy.SearchUpdate += (s, e) =>
@@ -48,7 +52,7 @@ namespace LocalSearch
                                     WorkerSolutionUpdate(this, new SearchValueEventArgs(e.Value, workerSlot));
                             };
                             return strategy.Search(Problem, Problem.RandomSolution());
-                        });
+                        }, CancellationToken.None, TaskCreationOptions.None, Scheduler);
                     }
                 }
                 Task<SearchResult<SolutionType>> completedWorker = await Task.WhenAny(workers);
